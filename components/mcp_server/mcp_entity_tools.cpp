@@ -109,23 +109,40 @@ static void add_base_meta(JsonBuilder &j, EntityBase *e, const std::string &enti
     j.key_str("entity_category", "diagnostic");
 }
 
-/// Simple argument extractor (finds "key":"value" in JSON string)
+/// Argument extractor — handles spaces around ':' and both string and numeric values.
+/// Python's json.dumps() produces "key": "value" (space after colon), so we must skip
+/// whitespace when locating the value.
 static std::string get_arg(const std::string &json, const std::string &key) {
-  std::string needle = "\"" + key + "\":\"";
+  std::string needle = "\"" + key + "\"";
   auto pos = json.find(needle);
-  if (pos == std::string::npos) {
-    // Try numeric: "key":123
-    needle = "\"" + key + "\":";
-    pos = json.find(needle);
-    if (pos == std::string::npos) return "";
-    pos += needle.size();
-    auto end = json.find_first_of(",}", pos);
+  if (pos == std::string::npos) return "";
+
+  pos += needle.size();
+  // skip whitespace then expect ':'
+  while (pos < json.size() && (json[pos] == ' ' || json[pos] == '\t')) pos++;
+  if (pos >= json.size() || json[pos] != ':') return "";
+  pos++;
+  // skip whitespace after ':'
+  while (pos < json.size() && (json[pos] == ' ' || json[pos] == '\t')) pos++;
+  if (pos >= json.size()) return "";
+
+  if (json[pos] == '"') {
+    // string value — return content between the quotes (no unescape needed for our args)
+    pos++;
+    auto end = json.find('"', pos);
+    if (end == std::string::npos) return "";
     return json.substr(pos, end - pos);
   }
-  pos += needle.size();
-  auto end = json.find('"', pos);
+  // numeric / boolean value — return until next delimiter
+  auto end = json.find_first_of(",}]", pos);
+  if (end == std::string::npos) end = json.size();
   return json.substr(pos, end - pos);
 }
+
+/// Safe numeric conversions — never throw (ESP-IDF has exceptions disabled → abort()).
+static float  safe_stof_(const std::string &s) { return s.empty() ? 0.0f : strtof(s.c_str(), nullptr); }
+static int    safe_stoi_(const std::string &s) { return s.empty() ? 0    : (int)strtol(s.c_str(), nullptr, 10); }
+static unsigned long safe_stoul_(const std::string &s) { return s.empty() ? 0UL : strtoul(s.c_str(), nullptr, 10); }
 
 static std::string json_string_escape_(const std::string &s) {
   std::string out;
@@ -494,7 +511,7 @@ std::string build_tools_list(bool auto_discover, bool expose_scripts,
       comma();
       std::string desc = rich_desc("Control lock: " + e->get_name(), {
         {"icon", e->get_icon()},
-        {"supports_open", e->traits.get_supports_open() ? "true" : "false"},
+        {"commands", e->traits.get_supports_open() ? "LOCK,UNLOCK,OPEN" : "LOCK,UNLOCK"},
       });
       j.raw(R"({"name":"lock_)" + e->get_object_id() + R"(",)");
       j.raw(R"("description":")" + desc + R"(",)");
@@ -535,8 +552,9 @@ std::string build_tools_list(bool auto_discover, bool expose_scripts,
       comma();
       std::string desc = rich_desc("Control alarm: " + e->get_name(), {
         {"icon", e->get_icon()},
+        {"commands", "ARM_HOME,ARM_AWAY,ARM_NIGHT,ARM_VACATION,DISARM"},
         {"requires_code", e->get_requires_code() ? "true" : "false"},
-        {"supported_features", std::to_string(e->get_supported_features())},
+        {"code", e->get_requires_code() ? "required" : "optional"},
       });
       j.raw(R"({"name":"alarm_)" + e->get_object_id() + R"(",)");
       j.raw(R"("description":")" + desc + R"(",)");
@@ -558,8 +576,8 @@ std::string build_tools_list(bool auto_discover, bool expose_scripts,
       std::string desc = rich_desc("Control valve: " + e->get_name(), {
         {"icon", e->get_icon()},
         {"device_class", e->get_device_class()},
+        {"commands", "OPEN,CLOSE,STOP"},
         {"supports_position", traits.get_supports_position() ? "true" : "false"},
-        {"supports_stop", traits.get_supports_stop() ? "true" : "false"},
       });
       j.raw(R"({"name":"valve_)" + e->get_object_id() + R"(",)");
       j.raw(R"("description":")" + desc + R"(",)");
@@ -792,22 +810,22 @@ std::string execute_tool(const std::string &tool_name,
         if (state == "OFF") {
           auto call = e->turn_off();
           std::string tl = get_arg(args, "transition_length");
-          if (!tl.empty()) call.set_transition_length(std::stoi(tl));
+          if (!tl.empty()) call.set_transition_length(safe_stoi_(tl));
           call.perform();
         } else {
           auto call = e->turn_on();
           std::string b = get_arg(args, "brightness");
-          if (!b.empty()) call.set_brightness(std::stof(b) / 255.0f);
+          if (!b.empty()) call.set_brightness(safe_stof_(b) / 255.0f);
           std::string ct = get_arg(args, "color_temp");
-          if (!ct.empty()) call.set_color_temperature(std::stof(ct));
+          if (!ct.empty()) call.set_color_temperature(safe_stof_(ct));
           std::string r = get_arg(args, "r"), g = get_arg(args, "g"), bv = get_arg(args, "b");
-          if (!r.empty()) call.set_red(std::stof(r) / 255.0f);
-          if (!g.empty()) call.set_green(std::stof(g) / 255.0f);
-          if (!bv.empty()) call.set_blue(std::stof(bv) / 255.0f);
+          if (!r.empty()) call.set_red(safe_stof_(r) / 255.0f);
+          if (!g.empty()) call.set_green(safe_stof_(g) / 255.0f);
+          if (!bv.empty()) call.set_blue(safe_stof_(bv) / 255.0f);
           std::string effect = get_arg(args, "effect");
           if (!effect.empty()) call.set_effect(effect);
           std::string tl = get_arg(args, "transition_length");
-          if (!tl.empty()) call.set_transition_length(std::stoi(tl));
+          if (!tl.empty()) call.set_transition_length(safe_stoi_(tl));
           call.perform();
         }
         return tool_result("Light " + id + " -> " + state);
@@ -828,7 +846,7 @@ std::string execute_tool(const std::string &tool_name,
         } else {
           auto call = e->turn_on();
           std::string speed = get_arg(args, "speed");
-          if (!speed.empty()) call.set_speed(std::stoi(speed));
+          if (!speed.empty()) call.set_speed(safe_stoi_(speed));
           std::string osc = get_arg(args, "oscillating");
           if (osc == "true") call.set_oscillating(true);
           else if (osc == "false") call.set_oscillating(false);
@@ -855,9 +873,9 @@ std::string execute_tool(const std::string &tool_name,
         else if (cmd == "CLOSE") cover_call.set_command_close();
         else if (cmd == "STOP") cover_call.set_command_stop();
         std::string pos = get_arg(args, "position");
-        if (!pos.empty()) cover_call.set_position(std::stof(pos));
+        if (!pos.empty()) cover_call.set_position(safe_stof_(pos));
         std::string tilt = get_arg(args, "tilt");
-        if (!tilt.empty()) cover_call.set_tilt(std::stof(tilt));
+        if (!tilt.empty()) cover_call.set_tilt(safe_stof_(tilt));
         cover_call.perform();
         return tool_result("Cover " + id + " -> " + cmd);
       }
@@ -881,11 +899,11 @@ std::string execute_tool(const std::string &tool_name,
         else if (mode == "FAN_ONLY") call.set_mode(climate::CLIMATE_MODE_FAN_ONLY);
         else if (mode == "AUTO") call.set_mode(climate::CLIMATE_MODE_AUTO);
         std::string tt = get_arg(args, "target_temperature");
-        if (!tt.empty()) call.set_target_temperature(std::stof(tt));
+        if (!tt.empty()) call.set_target_temperature(safe_stof_(tt));
         std::string ttl = get_arg(args, "target_temperature_low");
-        if (!ttl.empty()) call.set_target_temperature_low(std::stof(ttl));
+        if (!ttl.empty()) call.set_target_temperature_low(safe_stof_(ttl));
         std::string tth = get_arg(args, "target_temperature_high");
-        if (!tth.empty()) call.set_target_temperature_high(std::stof(tth));
+        if (!tth.empty()) call.set_target_temperature_high(safe_stof_(tth));
         std::string fm = get_arg(args, "fan_mode");
         if (!fm.empty()) call.set_fan_mode(fm);
         std::string sm = get_arg(args, "swing_mode");
@@ -908,7 +926,7 @@ std::string execute_tool(const std::string &tool_name,
         std::string val = get_arg(args, "value");
         if (!val.empty()) {
           auto call = e->make_call();
-          call.set_value(std::stof(val));
+          call.set_value(safe_stof_(val));
           call.perform();
         }
         return tool_result("Number " + id + " -> " + val);
@@ -963,7 +981,7 @@ std::string execute_tool(const std::string &tool_name,
         else if (cmd == "MUTE") call.set_command(media_player::MEDIA_PLAYER_COMMAND_MUTE);
         else if (cmd == "UNMUTE") call.set_command(media_player::MEDIA_PLAYER_COMMAND_UNMUTE);
         std::string vol = get_arg(args, "volume");
-        if (!vol.empty()) call.set_volume(std::stof(vol));
+        if (!vol.empty()) call.set_volume(safe_stof_(vol));
         std::string url = get_arg(args, "media_url");
         if (!url.empty()) call.set_media_url(url);
         call.perform();
@@ -1004,7 +1022,7 @@ std::string execute_tool(const std::string &tool_name,
         else if (cmd == "CLOSE") valve_call.set_command_close();
         else if (cmd == "STOP") valve_call.set_command_stop();
         std::string pos = get_arg(args, "position");
-        if (!pos.empty()) valve_call.set_position(std::stof(pos));
+        if (!pos.empty()) valve_call.set_position(safe_stof_(pos));
         valve_call.perform();
         return tool_result("Valve " + id + " -> " + cmd);
       }
@@ -1035,9 +1053,9 @@ std::string execute_tool(const std::string &tool_name,
     for (auto *e : App.get_dates()) {
       if (e->get_object_id() == id) {
         auto call = e->make_call();
-        call.set_date(std::stoi(get_arg(args, "year")),
-                      std::stoi(get_arg(args, "month")),
-                      std::stoi(get_arg(args, "day")));
+        call.set_date(safe_stoi_(get_arg(args, "year")),
+                      safe_stoi_(get_arg(args, "month")),
+                      safe_stoi_(get_arg(args, "day")));
         call.perform();
         return tool_result("Date " + id + " set");
       }
@@ -1052,9 +1070,9 @@ std::string execute_tool(const std::string &tool_name,
     for (auto *e : App.get_times()) {
       if (e->get_object_id() == id) {
         auto call = e->make_call();
-        call.set_time(std::stoi(get_arg(args, "hour")),
-                      std::stoi(get_arg(args, "minute")),
-                      std::stoi(get_arg(args, "second")));
+        call.set_time(safe_stoi_(get_arg(args, "hour")),
+                      safe_stoi_(get_arg(args, "minute")),
+                      safe_stoi_(get_arg(args, "second")));
         call.perform();
         return tool_result("Time " + id + " set");
       }
@@ -1069,7 +1087,7 @@ std::string execute_tool(const std::string &tool_name,
     for (auto *e : App.get_datetimes()) {
       if (e->get_object_id() == id) {
         auto call = e->make_call();
-        call.set_datetime(std::stoul(get_arg(args, "epoch")));
+        call.set_datetime(safe_stoul_(get_arg(args, "epoch")));
         call.perform();
         return tool_result("Datetime " + id + " set");
       }
@@ -1292,8 +1310,7 @@ std::string read_resource(const std::string &uri) {
       j.key_bool("is_internal", e->is_internal());
       j.key_bool("disabled_by_default", e->is_disabled_by_default());
       j.end_object();
-      std::string body = j.finish();
-      return R"({"contents":[{"uri":")" + uri + R"(","mimeType":"application/json","text":")" + body + R"("}]})";
+      return make_response(j.finish());
     }
   }
 #endif
@@ -1308,8 +1325,7 @@ std::string read_resource(const std::string &uri) {
       j.key_str("icon", e->get_icon());
       j.key_bool("has_state", e->has_state());
       j.end_object();
-      std::string body = j.finish();
-      return R"({"contents":[{"uri":")" + uri + R"(","mimeType":"application/json","text":")" + body + R"("}]})";
+      return make_response(j.finish());
     }
   }
 #endif
@@ -1324,8 +1340,7 @@ std::string read_resource(const std::string &uri) {
       j.key_str("icon", e->get_icon());
       j.key_bool("assumed_state", e->assumed_state());
       j.end_object();
-      std::string body = j.finish();
-      return R"({"contents":[{"uri":")" + uri + R"(","mimeType":"application/json","text":")" + body + R"("}]})";
+      return make_response(j.finish());
     }
   }
 #endif
@@ -1352,8 +1367,7 @@ std::string read_resource(const std::string &uri) {
       }
       j.key_str("effects", fx_list);
       j.end_object();
-      std::string body = j.finish();
-      return R"({"contents":[{"uri":")" + uri + R"(","mimeType":"application/json","text":")" + body + R"("}]})";
+      return make_response(j.finish());
     }
   }
 #endif
@@ -1369,14 +1383,13 @@ std::string read_resource(const std::string &uri) {
       j.key_float("target_temperature_high", e->target_temperature_high);
       j.key_str("icon", e->get_icon());
       j.end_object();
-      std::string body = j.finish();
-      return R"({"contents":[{"uri":")" + uri + R"(","mimeType":"application/json","text":")" + body + R"("}]})";
+      return make_response(j.finish());
     }
   }
 #endif
 
   // Fallback for types not fully implemented in read_resource
-  return R"({"contents":[{"uri":")" + uri + R"(","mimeType":"application/json","text":"{}"}]})";
+  return make_response("{}");
 }
 
 }  // namespace mcp_server

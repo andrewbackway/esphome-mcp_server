@@ -439,6 +439,7 @@ alarm_control_panel:
 
 script:
   - id: all_off
+    name: "All Off"
     then:
       - switch.turn_off: living_room_lamp
       - switch.turn_off: porch_light
@@ -447,6 +448,7 @@ script:
       - logger.log: "All off!"
 
   - id: all_on
+    name: "All On"
     then:
       - switch.turn_on: living_room_lamp
       - switch.turn_on: porch_light
@@ -456,6 +458,7 @@ script:
       - logger.log: "All on!"
 
   - id: morning_routine
+    name: "Morning Routine"
     then:
       - light.turn_on:
           id: ceiling_light
@@ -464,6 +467,7 @@ script:
       - logger.log: "Good morning!"
 
   - id: night_routine
+    name: "Night Routine"
     then:
       - switch.turn_off: living_room_lamp
       - switch.turn_off: ventilation_fan
@@ -472,6 +476,7 @@ script:
       - logger.log: "Goodnight!"
 
   - id: long_running_task
+    name: "Long Running Task"
     mode: single
     then:
       - logger.log: "Long task started"
@@ -479,6 +484,7 @@ script:
       - logger.log: "Long task finished"
 
   - id: irrigation_cycle
+    name: "Irrigation Cycle"
     mode: single
     then:
       - valve.open: zone_1_sprinkler
