@@ -240,11 +240,9 @@ fan:
     name: "Bedroom Fan"
     id: bedroom_fan
     icon: mdi:fan
-    has_speed: true
     has_oscillating: true
     has_direction: true
     speed_count: 4
-
 # ═══════════════════════════════════════
 #  COVER (template cover)
 # ═══════════════════════════════════════
@@ -265,7 +263,6 @@ cover:
     icon: mdi:blinds
     optimistic: true
     has_position: true
-    has_tilt: true
 
 # ═══════════════════════════════════════
 #  CLIMATE (thermostat via template)
@@ -277,6 +274,11 @@ climate:
     id: main_thermostat
     icon: mdi:thermostat
     sensor: temperature
+    min_idle_time: 30s
+    min_cooling_run_time: 30s  
+    min_cooling_off_time: 30s  
+    min_heating_run_time: 30s 
+    min_heating_off_time: 30s
     default_preset: Home
     preset:
       - name: Home
@@ -421,7 +423,7 @@ alarm_control_panel:
     id: home_alarm
     codes:
       - "1234"
-    requires_code: true
+    requires_code_to_arm: true  
     arming_home_time: 0s
     arming_away_time: 0s
     arming_night_time: 0s
