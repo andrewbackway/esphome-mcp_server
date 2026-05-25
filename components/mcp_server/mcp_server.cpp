@@ -89,8 +89,25 @@ std::string MCPServerComponent::handle_resource_read(const std::string &uri) {
 }
 
 void MCPServerComponent::accept_clients_() {
-  // Accept new TCP connections -> create MCPSession
-  // (implementation uses platform-specific socket accept)
+#ifdef USE_ESP_IDF
+  struct sockaddr_in client_addr{};
+  socklen_t addr_len = sizeof(client_addr);
+  int client_fd = ::accept(this->server_fd_, (struct sockaddr *) &client_addr, &addr_len);
+  if (client_fd < 0) {
+    return;  // EAGAIN / EWOULDBLOCK — no pending connection
+  }
+  int flags = fcntl(client_fd, F_GETFL, 0);
+  fcntl(client_fd, F_SETFL, flags | O_NONBLOCK);
+  ESP_LOGI(TAG, "New MCP client connected (fd=%d)", client_fd);
+  this->sessions_.push_back(std::make_shared<MCPSession>(client_fd, this));
+#else
+  WiFiClient client = this->server_->available();
+  if (!client) {
+    return;
+  }
+  ESP_LOGI(TAG, "New MCP client connected");
+  this->sessions_.push_back(std::make_shared<MCPSession>(client.fd(), this));
+#endif
 }
 
 void MCPServerComponent::cleanup_sessions_() {
