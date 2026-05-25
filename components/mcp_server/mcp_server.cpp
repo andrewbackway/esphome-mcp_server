@@ -78,8 +78,8 @@ void MCPServerComponent::accept_clients_() {
   if (client_fd < 0) {
     return;  // EAGAIN / EWOULDBLOCK — no pending connection
   }
-  int flags = fcntl(client_fd, F_GETFL, 0);
-  fcntl(client_fd, F_SETFL, flags | O_NONBLOCK);
+  // Do NOT set O_NONBLOCK on the client fd: recv() uses MSG_DONTWAIT already,
+  // and blocking send() is required so large responses (tools/list) don't EAGAIN.
   ESP_LOGI(TAG, "New MCP client connected (fd=%d)", client_fd);
   this->sessions_.push_back(std::make_shared<MCPSession>(client_fd, this));
 }
