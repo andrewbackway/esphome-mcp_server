@@ -31,10 +31,7 @@ ota:
   - platform: esphome
 
 external_components:
-  - source:
-      type: git
-      url: https://github.com/andrew-backway/esphome-mcp-server
-      ref: main
+  - source: github://andrew-backway/esphome-mcp-server@main
     components: [mcp_server]
 
 mcp_server:

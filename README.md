@@ -73,10 +73,7 @@ Add the external component to any ESPHome device config:
 
 ```yaml
 external_components:
-  - source:
-      type: git
-      url: https://github.com/andrew-backway/esphome-mcp-server
-      ref: main
+  - source: github://andrew-backway/esphome-mcp-server@main
     components: [mcp_server]
 
 mcp_server:
@@ -114,10 +111,7 @@ logger:
 api:
 
 external_components:
-  - source:
-      type: git
-      url: https://github.com/andrew-backway/esphome-mcp-server
-      ref: main
+  - source: github://andrew-backway/esphome-mcp-server@main
     components: [mcp_server]
 
 mcp_server:
