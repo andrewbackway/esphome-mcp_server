@@ -6,6 +6,8 @@
 
 An [ESPHome](https://esphome.io) external component that runs a **Model Context Protocol (MCP)** server directly on your ESP32 device. Any MCP-compatible client (Claude Desktop, VS Code Copilot, custom agents) can discover and interact with every entity on your device over the local network — no cloud required.
 
+***UNDER HEAVY DEVELOPMENT***
+
 ---
 
 ## Table of Contents
