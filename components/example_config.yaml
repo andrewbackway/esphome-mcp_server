@@ -1,0 +1,70 @@
+external_components:
+  - source:
+      type: git
+      url: https://github.com/andrew-backway/esphome-mcp-server
+      ref: main
+    components: [mcp_server]
+
+esphome:
+  name: my-mcp-node
+  friendly_name: "MCP Node"
+
+esp32:
+  board: lolin_s3_pro
+  variant: esp32s3
+  framework:
+    type: esp-idf          # recommended for S3 + networking stability
+    version: recommended
+
+psram:
+  mode: octal              # LOLIN S3 Pro has 8MB PSRAM — essential for MCP payloads
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+# --- MCP Server Config ---
+mcp_server:
+  port: 8080
+  # Auto-discover all entities and expose as MCP tools/resources
+  auto_discover: true
+  # Optionally restrict to specific entity types
+  # entity_types:
+  #   - sensor
+  #   - switch
+  #   - light
+  #   - climate
+  # Expose scripts as MCP tools
+  expose_scripts: true
+
+# --- Example entities (auto-discovered by MCP) ---
+sensor:
+  - platform: dht
+    pin: GPIO1
+    temperature:
+      name: "Temperature"
+    humidity:
+      name: "Humidity"
+
+switch:
+  - platform: gpio
+    pin: GPIO2
+    name: "Relay"
+
+light:
+  - platform: neopixelbus
+    name: "LED Strip"
+    # ...
+
+script:
+  - id: reboot_device
+    then:
+      - logger.log: "Rebooting..."
+      - delay: 1s
+      - lambda: 'App.safe_reboot();'
+
+  - id: flash_lights
+    then:
+      - light.turn_on: led_strip
+      - delay: 500ms
+      - light.turn_off: led_strip

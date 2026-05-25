@@ -1,0 +1,491 @@
+# ═══════════════════════════════════════════════════════════════
+#  ESPHome MCP Server — Kitchen Sink Test Config
+#  Every supported entity type with simulated random values.
+#  No real hardware required — flash to LOLIN S3 Pro and test.
+# ═══════════════════════════════════════════════════════════════
+
+esphome:
+  name: mcp-kitchen-sink
+  friendly_name: "MCP Kitchen Sink"
+
+esp32:
+  board: lolin_s3_pro
+  variant: esp32s3
+  framework:
+    type: esp-idf
+    version: recommended
+
+psram:
+  mode: octal
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+logger:
+  level: DEBUG
+
+api:
+
+ota:
+  - platform: esphome
+
+external_components:
+  - source:
+      type: git
+      url: https://github.com/andrew-backway/esphome-mcp-server
+      ref: main
+    components: [mcp_server]
+
+mcp_server:
+  port: 8080
+  auto_discover: true
+  expose_scripts: true
+
+# ═══════════════════════════════════════
+#  SENSOR (5 sensors, various classes)
+# ═══════════════════════════════════════
+
+sensor:
+  - platform: template
+    name: "Temperature"
+    id: temperature
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+    device_class: temperature
+    state_class: measurement
+    icon: mdi:thermometer
+    update_interval: 5s
+    lambda: |-
+      return 15.0 + (esp_random() % 200) / 10.0;
+
+  - platform: template
+    name: "Humidity"
+    id: humidity
+    unit_of_measurement: "%"
+    accuracy_decimals: 0
+    device_class: humidity
+    state_class: measurement
+    icon: mdi:water-percent
+    update_interval: 5s
+    lambda: |-
+      return 20.0 + (esp_random() % 60);
+
+  - platform: template
+    name: "Power Usage"
+    id: power_usage
+    unit_of_measurement: "W"
+    accuracy_decimals: 1
+    device_class: power
+    state_class: measurement
+    icon: mdi:flash
+    update_interval: 5s
+    lambda: |-
+      return 50.0 + (esp_random() % 2000) / 10.0;
+
+  - platform: template
+    name: "Battery Voltage"
+    id: battery_voltage
+    unit_of_measurement: "V"
+    accuracy_decimals: 2
+    device_class: voltage
+    state_class: measurement
+    icon: mdi:battery
+    update_interval: 10s
+    lambda: |-
+      return 3.0 + (esp_random() % 120) / 100.0;
+
+  - platform: template
+    name: "CO2 Level"
+    id: co2_level
+    unit_of_measurement: "ppm"
+    accuracy_decimals: 0
+    device_class: carbon_dioxide
+    state_class: measurement
+    icon: mdi:molecule-co2
+    update_interval: 10s
+    lambda: |-
+      return 400.0 + (esp_random() % 1600);
+
+# ═══════════════════════════════════════
+#  BINARY SENSOR (3 sensors)
+# ═══════════════════════════════════════
+
+binary_sensor:
+  - platform: template
+    name: "Front Door"
+    id: front_door
+    device_class: door
+    icon: mdi:door
+    lambda: |-
+      return (esp_random() % 10) < 2;
+
+  - platform: template
+    name: "Motion Detected"
+    id: motion_detected
+    device_class: motion
+    icon: mdi:motion-sensor
+    lambda: |-
+      return (esp_random() % 10) < 3;
+
+  - platform: template
+    name: "Smoke Alarm"
+    id: smoke_alarm
+    device_class: smoke
+    icon: mdi:smoke-detector
+    lambda: |-
+      return (esp_random() % 100) < 1;
+
+# ═══════════════════════════════════════
+#  TEXT SENSOR (2 sensors)
+# ═══════════════════════════════════════
+
+text_sensor:
+  - platform: template
+    name: "System Status"
+    id: system_status
+    icon: mdi:information-outline
+    update_interval: 10s
+    lambda: |-
+      int r = esp_random() % 4;
+      if (r == 0) return std::string("idle");
+      if (r == 1) return std::string("running");
+      if (r == 2) return std::string("warning");
+      return std::string("error");
+
+  - platform: template
+    name: "Last Event"
+    id: last_event
+    icon: mdi:clock-outline
+    update_interval: 15s
+    lambda: |-
+      int r = esp_random() % 3;
+      if (r == 0) return std::string("door_opened");
+      if (r == 1) return std::string("motion_detected");
+      return std::string("button_pressed");
+
+# ═══════════════════════════════════════
+#  SWITCH (3 switches)
+# ═══════════════════════════════════════
+
+switch:
+  - platform: template
+    name: "Living Room Lamp"
+    id: living_room_lamp
+    icon: mdi:lamp
+    device_class: outlet
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+
+  - platform: template
+    name: "Porch Light"
+    id: porch_light
+    icon: mdi:outdoor-lamp
+    device_class: outlet
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+
+  - platform: template
+    name: "Ventilation Fan"
+    id: ventilation_fan
+    icon: mdi:fan
+    device_class: switch
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+
+# ═══════════════════════════════════════
+#  BUTTON (2 buttons)
+# ═══════════════════════════════════════
+
+button:
+  - platform: template
+    name: "Panic Button"
+    id: panic_button
+    icon: mdi:alarm-light
+    device_class: restart
+    on_press:
+      - logger.log: "PANIC pressed!"
+
+  - platform: template
+    name: "Doorbell"
+    id: doorbell
+    icon: mdi:bell
+    on_press:
+      - logger.log: "Ding dong!"
+
+# ═══════════════════════════════════════
+#  LIGHT (simulated via template output)
+# ═══════════════════════════════════════
+
+output:
+  - platform: template
+    id: light_output_brightness
+    type: float
+    write_action:
+      - logger.log:
+          format: "Light brightness: %.2f"
+          args: ['state']
+
+light:
+  - platform: monochromatic
+    name: "Ceiling Light"
+    id: ceiling_light
+    output: light_output_brightness
+    icon: mdi:ceiling-light
+    default_transition_length: 500ms
+
+# ═══════════════════════════════════════
+#  FAN (template fan)
+# ═══════════════════════════════════════
+
+fan:
+  - platform: template
+    name: "Bedroom Fan"
+    id: bedroom_fan
+    icon: mdi:fan
+    has_speed: true
+    has_oscillating: true
+    has_direction: true
+    speed_count: 4
+
+# ═══════════════════════════════════════
+#  COVER (template cover)
+# ═══════════════════════════════════════
+
+cover:
+  - platform: template
+    name: "Garage Door"
+    id: garage_door
+    device_class: garage
+    icon: mdi:garage
+    optimistic: true
+    has_position: true
+
+  - platform: template
+    name: "Window Blinds"
+    id: window_blinds
+    device_class: blind
+    icon: mdi:blinds
+    optimistic: true
+    has_position: true
+    has_tilt: true
+
+# ═══════════════════════════════════════
+#  CLIMATE (thermostat via template)
+# ═══════════════════════════════════════
+
+climate:
+  - platform: thermostat
+    name: "Main Thermostat"
+    id: main_thermostat
+    icon: mdi:thermostat
+    sensor: temperature
+    default_preset: Home
+    preset:
+      - name: Home
+        default_target_temperature_low: 20 °C
+        default_target_temperature_high: 24 °C
+      - name: Away
+        default_target_temperature_low: 16 °C
+        default_target_temperature_high: 28 °C
+      - name: Sleep
+        default_target_temperature_low: 18 °C
+        default_target_temperature_high: 22 °C
+    heat_action:
+      - logger.log: "Heating ON"
+    cool_action:
+      - logger.log: "Cooling ON"
+    idle_action:
+      - logger.log: "HVAC idle"
+
+# ═══════════════════════════════════════
+#  NUMBER (2 numbers)
+# ═══════════════════════════════════════
+
+number:
+  - platform: template
+    name: "Target Brightness"
+    id: target_brightness
+    icon: mdi:brightness-6
+    unit_of_measurement: "%"
+    min_value: 0
+    max_value: 100
+    step: 5
+    optimistic: true
+    initial_value: 50
+    device_class: power_factor
+    mode: slider
+
+  - platform: template
+    name: "Volume Level"
+    id: volume_level
+    icon: mdi:volume-high
+    unit_of_measurement: "dB"
+    min_value: -60
+    max_value: 0
+    step: 1
+    optimistic: true
+    initial_value: -20
+    mode: box
+
+# ═══════════════════════════════════════
+#  SELECT (1 select)
+# ═══════════════════════════════════════
+
+select:
+  - platform: template
+    name: "Operating Mode"
+    id: operating_mode
+    icon: mdi:cog
+    options:
+      - "Auto"
+      - "Manual"
+      - "Eco"
+      - "Boost"
+      - "Off"
+    initial_option: "Auto"
+    optimistic: true
+
+# ═══════════════════════════════════════
+#  LOCK (1 lock)
+# ═══════════════════════════════════════
+
+lock:
+  - platform: template
+    name: "Front Door Lock"
+    id: front_door_lock
+    icon: mdi:lock-smart
+    optimistic: true
+
+# ═══════════════════════════════════════
+#  VALVE (2 valves)
+# ═══════════════════════════════════════
+
+valve:
+  - platform: template
+    name: "Zone 1 Sprinkler"
+    id: zone_1_sprinkler
+    icon: mdi:sprinkler-variant
+    device_class: water
+    optimistic: true
+
+  - platform: template
+    name: "Zone 2 Sprinkler"
+    id: zone_2_sprinkler
+    icon: mdi:sprinkler
+    device_class: water
+    optimistic: true
+
+# ═══════════════════════════════════════
+#  TEXT (1 text input)
+# ═══════════════════════════════════════
+
+text:
+  - platform: template
+    name: "Display Message"
+    id: display_message
+    icon: mdi:message-text
+    optimistic: true
+    min_length: 0
+    max_length: 128
+    mode: text
+    initial_value: "Hello MCP!"
+
+# ═══════════════════════════════════════
+#  DATE / TIME / DATETIME
+# ═══════════════════════════════════════
+
+datetime:
+  - platform: template
+    name: "Schedule Date"
+    id: schedule_date
+    type: date
+    optimistic: true
+
+  - platform: template
+    name: "Alarm Time"
+    id: alarm_time
+    type: time
+    optimistic: true
+
+  - platform: template
+    name: "Next Run"
+    id: next_run
+    type: datetime
+    optimistic: true
+
+# ═══════════════════════════════════════
+#  ALARM CONTROL PANEL
+# ═══════════════════════════════════════
+
+alarm_control_panel:
+  - platform: template
+    name: "Home Alarm"
+    id: home_alarm
+    codes:
+      - "1234"
+    requires_code: true
+    arming_home_time: 0s
+    arming_away_time: 0s
+    arming_night_time: 0s
+    pending_time: 0s
+    trigger_time: 60s
+    binary_sensors:
+      - input: front_door
+      - input: motion_detected
+
+# ═══════════════════════════════════════
+#  SCRIPTS (6 scripts)
+# ═══════════════════════════════════════
+
+script:
+  - id: all_off
+    then:
+      - switch.turn_off: living_room_lamp
+      - switch.turn_off: porch_light
+      - switch.turn_off: ventilation_fan
+      - light.turn_off: ceiling_light
+      - logger.log: "All off!"
+
+  - id: all_on
+    then:
+      - switch.turn_on: living_room_lamp
+      - switch.turn_on: porch_light
+      - light.turn_on:
+          id: ceiling_light
+          brightness: 100%
+      - logger.log: "All on!"
+
+  - id: morning_routine
+    then:
+      - light.turn_on:
+          id: ceiling_light
+          brightness: 80%
+      - switch.turn_off: porch_light
+      - logger.log: "Good morning!"
+
+  - id: night_routine
+    then:
+      - switch.turn_off: living_room_lamp
+      - switch.turn_off: ventilation_fan
+      - light.turn_off: ceiling_light
+      - lock.lock: front_door_lock
+      - logger.log: "Goodnight!"
+
+  - id: long_running_task
+    mode: single
+    then:
+      - logger.log: "Long task started"
+      - delay: 30s
+      - logger.log: "Long task finished"
+
+  - id: irrigation_cycle
+    mode: single
+    then:
+      - valve.open: zone_1_sprinkler
+      - delay: 10s
+      - valve.close: zone_1_sprinkler
+      - valve.open: zone_2_sprinkler
+      - delay: 10s
+      - valve.close: zone_2_sprinkler
+      - logger.log: "Irrigation complete"
