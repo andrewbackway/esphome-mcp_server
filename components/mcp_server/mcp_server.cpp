@@ -54,12 +54,13 @@ std::string MCPServerComponent::handle_initialize() {
 std::string MCPServerComponent::handle_tools_list() {
   return build_tools_list(this->auto_discover_,
                           this->expose_scripts_,
-                          this->entity_type_filters_);
+                          this->entity_type_filters_,
+                          this->scripts_);
 }
 
 std::string MCPServerComponent::handle_tool_call(
     const std::string &tool_name, const std::string &arguments_json) {
-  return execute_tool(tool_name, arguments_json);
+  return execute_tool(tool_name, arguments_json, this->scripts_);
 }
 
 std::string MCPServerComponent::handle_resources_list() {

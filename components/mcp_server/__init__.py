@@ -1,7 +1,7 @@
 import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.const import CONF_ID, CONF_PORT
-from esphome.core import coroutine_with_priority
+from esphome.core import coroutine_with_priority, CORE
 
 CODEOWNERS = ["@andrew-backway"]
 DEPENDENCIES = ["network"]
@@ -63,3 +63,11 @@ async def to_code(config):
     if CONF_ENTITY_TYPES in config:
         for etype in config[CONF_ENTITY_TYPES]:
             cg.add(var.add_entity_type_filter(etype))
+
+    if config.get(CONF_EXPOSE_SCRIPTS, True):
+        for script_conf in CORE.config.get("script", []):
+            if "name" in script_conf:
+                script_var = await cg.get_variable(script_conf["id"])
+                object_id = str(script_conf["id"])
+                name = str(script_conf["name"])
+                cg.add(var.add_script(script_var, object_id, name))

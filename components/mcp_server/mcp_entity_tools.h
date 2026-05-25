@@ -57,11 +57,22 @@ struct EntityMeta {
   bool disabled_by_default;
 };
 
+// ── Script registration ──
+// script_ptr holds a esphome::script::Script<>* (stored as void* to avoid
+// requiring USE_SCRIPT in headers that include this file).
+struct MCPScriptInfo {
+  void *script_ptr;
+  std::string object_id;
+  std::string name;
+};
+
 // ── Public API ──
 std::string build_tools_list(bool auto_discover, bool expose_scripts,
-                             const std::vector<std::string> &type_filters);
+                             const std::vector<std::string> &type_filters,
+                             const std::vector<MCPScriptInfo> &scripts);
 std::string execute_tool(const std::string &tool_name,
-                         const std::string &arguments_json);
+                         const std::string &arguments_json,
+                         const std::vector<MCPScriptInfo> &scripts);
 std::string build_resources_list(bool auto_discover,
                                  const std::vector<std::string> &type_filters);
 std::string read_resource(const std::string &uri);

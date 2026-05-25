@@ -179,7 +179,8 @@ static std::string tool_error(const std::string &text) {
 // ════════════════════════════════════════════════════════════════
 
 std::string build_tools_list(bool auto_discover, bool expose_scripts,
-                             const std::vector<std::string> &type_filters) {
+                             const std::vector<std::string> &type_filters,
+                             const std::vector<MCPScriptInfo> &scripts) {
   JsonBuilder j;
   j.raw(R"({"tools":[)");
   bool first = true;
@@ -687,18 +688,16 @@ std::string build_tools_list(bool auto_discover, bool expose_scripts,
 #endif
 
   // ────────── SCRIPTS ──────────
-#ifdef USE_SCRIPT
-  if (expose_scripts) {
-    for (auto *e : App.get_scripts()) {
+  if (expose_scripts && !scripts.empty()) {
+    for (auto &s : scripts) {
       comma();
-      j.raw(R"({"name":"script_)" + e->get_object_id() + R"(",)");
-      j.raw(R"("description":"Execute script: )" + e->get_object_id() + R"(",)");
+      j.raw(R"({"name":"script_)" + s.object_id + R"(",)");
+      j.raw(R"("description":"Execute script: )" + s.name + R"(",)");
       j.raw(R"("inputSchema":{"type":"object","properties":{)");
       j.raw(R"("action":{"type":"string","enum":["execute","stop","is_running"],"description":"Action to perform on script"})");
       j.raw(R"(}}})" );
     }
   }
-#endif
 
   j.raw("]}");
   return j.finish();
@@ -710,7 +709,8 @@ std::string build_tools_list(bool auto_discover, bool expose_scripts,
 // ════════════════════════════════════════════════════════════════
 
 std::string execute_tool(const std::string &tool_name,
-                         const std::string &args) {
+                         const std::string &args,
+                         const std::vector<MCPScriptInfo> &scripts) {
 
   // ── SENSOR ──
 #ifdef USE_SENSOR
@@ -1128,25 +1128,29 @@ std::string execute_tool(const std::string &tool_name,
 #endif
 
   // ── SCRIPT ──
-#ifdef USE_SCRIPT
   if (tool_name.rfind("script_", 0) == 0) {
     std::string id = tool_name.substr(7);
-    for (auto *s : App.get_scripts()) {
-      if (s->get_object_id() == id) {
+    for (auto &s : scripts) {
+      if (s.object_id == id) {
         std::string action = get_arg(args, "action");
+#ifdef USE_SCRIPT
+        auto *script = static_cast<esphome::script::Script<> *>(s.script_ptr);
         if (action == "stop") {
-          s->stop();
+          script->stop();
           return tool_result("Script " + id + " stopped");
         } else if (action == "is_running") {
-          return tool_result(s->is_running() ? "true" : "false");
+          return tool_result(script->is_running() ? "true" : "false");
         } else {
-          s->execute();
+          script->execute();
           return tool_result("Script " + id + " executed");
         }
+#else
+        return tool_error("Script support not compiled");
+#endif
       }
     }
+    return tool_error("Unknown script: " + id);
   }
-#endif
 
   return tool_error("Unknown tool: " + tool_name);
 }
@@ -1339,6 +1343,20 @@ std::string read_resource(const std::string &uri) {
       j.key_str("device_class", e->get_device_class());
       j.key_str("icon", e->get_icon());
       j.key_bool("assumed_state", e->assumed_state());
+      j.end_object();
+      return make_response(j.finish());
+    }
+  }
+#endif
+
+#ifdef USE_TEXT_SENSOR
+  if (type == "text_sensor") {
+    for (auto *e : App.get_text_sensors()) {
+      if (e->get_object_id() != id) continue;
+      j.key_str("name", e->get_name());
+      j.key_str("state", e->get_state());
+      j.key_str("icon", e->get_icon());
+      j.key_bool("has_state", e->has_state());
       j.end_object();
       return make_response(j.finish());
     }

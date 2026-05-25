@@ -3,6 +3,7 @@
 #include "esphome/core/component.h"
 #include "esphome/core/application.h"
 #include "esphome/components/network/util.h"
+#include "mcp_entity_tools.h"
 
 #include <vector>
 #include <string>
@@ -22,6 +23,9 @@ class MCPServerComponent : public Component {
   void set_expose_scripts(bool val) { this->expose_scripts_ = val; }
   void add_entity_type_filter(const std::string &type) {
     this->entity_type_filters_.push_back(type);
+  }
+  void add_script(void *script_ptr, const std::string &object_id, const std::string &name) {
+    this->scripts_.push_back({script_ptr, object_id, name});
   }
 
   float get_setup_priority() const override {
@@ -45,6 +49,7 @@ class MCPServerComponent : public Component {
   bool auto_discover_{true};
   bool expose_scripts_{true};
   std::vector<std::string> entity_type_filters_;
+  std::vector<MCPScriptInfo> scripts_;
   std::vector<std::shared_ptr<MCPSession>> sessions_;
 
   int server_fd_{-1};
