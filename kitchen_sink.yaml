@@ -31,7 +31,7 @@ ota:
   - platform: esphome
 
 external_components:
-  - source: github://andrew-backway/esphome-mcp-server@main
+  - source: github://andrew-backway/esphome-mcp_server@main
     components: [mcp_server]
 
 mcp_server:
