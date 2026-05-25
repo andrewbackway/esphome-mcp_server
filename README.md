@@ -88,7 +88,7 @@ Flash the device. Every non-internal entity is now available over MCP on port `8
 
 A self-contained demo you can flash immediately. Uses `template` sensors with random lambda values and template switches — no real hardware required.
 
-[example.yaml]
+[example.yaml](example.yaml)
 
 ### What the MCP client discovers
 
