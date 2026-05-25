@@ -127,11 +127,34 @@ static std::string get_arg(const std::string &json, const std::string &key) {
   return json.substr(pos, end - pos);
 }
 
+static std::string json_string_escape_(const std::string &s) {
+  std::string out;
+  out.reserve(s.size() + 16);
+  for (char c : s) {
+    switch (c) {
+      case '"':  out += "\\\""; break;
+      case '\\': out += "\\\\"; break;
+      case '\n': out += "\\n";  break;
+      case '\r': out += "\\r";  break;
+      case '\t': out += "\\t";  break;
+      default:
+        if (static_cast<unsigned char>(c) < 0x20) {
+          char buf[7];
+          snprintf(buf, sizeof(buf), "\\u%04x", static_cast<unsigned char>(c));
+          out += buf;
+        } else {
+          out += c;
+        }
+    }
+  }
+  return out;
+}
+
 static std::string tool_result(const std::string &text) {
-  return R"({"content":[{"type":"text","text":")" + text + R"("}]})";
+  return R"({"content":[{"type":"text","text":")" + json_string_escape_(text) + R"("}]})";
 }
 static std::string tool_error(const std::string &text) {
-  return R"({"content":[{"type":"text","text":")" + text + R"("}],"isError":true})";
+  return R"({"content":[{"type":"text","text":")" + json_string_escape_(text) + R"("}],"isError":true})";
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -1243,6 +1266,13 @@ std::string read_resource(const std::string &uri) {
   if (slash == std::string::npos) return tool_error("Invalid URI: " + uri);
   std::string type = rest.substr(0, slash);
   std::string id = rest.substr(slash + 1);
+
+  // Wrap a JSON body as a proper resources/read response
+  auto make_response = [&](const std::string &body) -> std::string {
+    return R"({"contents":[{"uri":")" + json_string_escape_(uri) +
+           R"(","mimeType":"application/json","text":")" + json_string_escape_(body) +
+           R"("}]})";
+  };
 
   JsonBuilder j;
   j.start_object();

@@ -12,7 +12,6 @@ static const char *TAG = "mcp_server";
 void MCPServerComponent::setup() {
   ESP_LOGCONFIG(TAG, "Setting up MCP Server on port %d...", this->port_);
 
-#ifdef USE_ESP_IDF
   struct sockaddr_in addr{};
   addr.sin_family = AF_INET;
   addr.sin_port = htons(this->port_);
@@ -22,16 +21,11 @@ void MCPServerComponent::setup() {
   int opt = 1;
   setsockopt(this->server_fd_, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 
-  // Non-blocking
   int flags = fcntl(this->server_fd_, F_GETFL, 0);
   fcntl(this->server_fd_, F_SETFL, flags | O_NONBLOCK);
 
-  bind(this->server_fd_, (struct sockaddr *)&addr, sizeof(addr));
+  bind(this->server_fd_, (struct sockaddr *) &addr, sizeof(addr));
   listen(this->server_fd_, 4);
-#else
-  this->server_ = std::make_unique<WiFiServer>(this->port_);
-  this->server_->begin();
-#endif
 
   ESP_LOGI(TAG, "MCP Server listening on port %d", this->port_);
 }
@@ -89,7 +83,6 @@ std::string MCPServerComponent::handle_resource_read(const std::string &uri) {
 }
 
 void MCPServerComponent::accept_clients_() {
-#ifdef USE_ESP_IDF
   struct sockaddr_in client_addr{};
   socklen_t addr_len = sizeof(client_addr);
   int client_fd = ::accept(this->server_fd_, (struct sockaddr *) &client_addr, &addr_len);
@@ -100,14 +93,6 @@ void MCPServerComponent::accept_clients_() {
   fcntl(client_fd, F_SETFL, flags | O_NONBLOCK);
   ESP_LOGI(TAG, "New MCP client connected (fd=%d)", client_fd);
   this->sessions_.push_back(std::make_shared<MCPSession>(client_fd, this));
-#else
-  WiFiClient client = this->server_->available();
-  if (!client) {
-    return;
-  }
-  ESP_LOGI(TAG, "New MCP client connected");
-  this->sessions_.push_back(std::make_shared<MCPSession>(client.fd(), this));
-#endif
 }
 
 void MCPServerComponent::cleanup_sessions_() {

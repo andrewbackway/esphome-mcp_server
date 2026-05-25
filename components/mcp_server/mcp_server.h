@@ -8,12 +8,7 @@
 #include <string>
 #include <memory>
 
-#ifdef USE_ESP_IDF
 #include "lwip/sockets.h"
-#else
-#include <WiFiServer.h>
-#include <WiFiClient.h>
-#endif
 
 namespace esphome {
 namespace mcp_server {
@@ -52,11 +47,7 @@ class MCPServerComponent : public Component {
   std::vector<std::string> entity_type_filters_;
   std::vector<std::shared_ptr<MCPSession>> sessions_;
 
-#ifdef USE_ESP_IDF
   int server_fd_{-1};
-#else
-  std::unique_ptr<WiFiServer> server_;
-#endif
 
   void accept_clients_();
   void cleanup_sessions_();
