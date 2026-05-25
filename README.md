@@ -88,168 +88,7 @@ Flash the device. Every non-internal entity is now available over MCP on port `8
 
 A self-contained demo you can flash immediately. Uses `template` sensors with random lambda values and template switches — no real hardware required.
 
-```yaml
-esphome:
-  name: mcp-demo
-  friendly_name: "MCP Demo Node"
-
-esp32:
-  board: lolin_s3_pro
-  variant: esp32s3
-  framework:
-    type: esp-idf
-    version: recommended
-
-psram:
-  mode: octal
-
-wifi:
-  ssid: !secret wifi_ssid
-  password: !secret wifi_password
-
-logger:
-api:
-
-external_components:
-  - source: github://andrewbackway/esphome-mcp_server@main
-    components: [mcp_server]
-
-mcp_server:
-  port: 8080
-  auto_discover: true
-  expose_scripts: true
-
-# ── Simulated sensors (random values) ──
-
-sensor:
-  - platform: template
-    name: "Temperature"
-    unit_of_measurement: "°C"
-    accuracy_decimals: 1
-    device_class: temperature
-    state_class: measurement
-    icon: mdi:thermometer
-    update_interval: 10s
-    lambda: |-
-      return 18.0 + (esp_random() % 120) / 10.0;  // 18.0 – 30.0 °C
-
-  - platform: template
-    name: "Humidity"
-    unit_of_measurement: "%"
-    accuracy_decimals: 0
-    device_class: humidity
-    state_class: measurement
-    icon: mdi:water-percent
-    update_interval: 10s
-    lambda: |-
-      return 30.0 + (esp_random() % 50);  // 30 – 80 %
-
-  - platform: template
-    name: "Battery Voltage"
-    unit_of_measurement: "V"
-    accuracy_decimals: 2
-    device_class: voltage
-    state_class: measurement
-    icon: mdi:battery
-    update_interval: 30s
-    lambda: |-
-      return 3.0 + (esp_random() % 120) / 100.0;  // 3.00 – 4.20 V
-
-  - platform: template
-    name: "Light Level"
-    unit_of_measurement: "lx"
-    accuracy_decimals: 0
-    device_class: illuminance
-    state_class: measurement
-    icon: mdi:brightness-5
-    update_interval: 10s
-    lambda: |-
-      return (esp_random() % 1000);  // 0 – 1000 lx
-
-  - platform: uptime
-    name: "Uptime"
-
-  - platform: wifi_signal
-    name: "WiFi Signal"
-
-# ── Simulated switches ──
-
-switch:
-  - platform: template
-    name: "Living Room Lamp"
-    icon: mdi:lamp
-    device_class: outlet
-    optimistic: true
-    restore_mode: RESTORE_DEFAULT_OFF
-
-  - platform: template
-    name: "Porch Light"
-    icon: mdi:outdoor-lamp
-    device_class: outlet
-    optimistic: true
-    restore_mode: RESTORE_DEFAULT_OFF
-
-  - platform: template
-    name: "Fan"
-    icon: mdi:fan
-    device_class: switch
-    optimistic: true
-    restore_mode: RESTORE_DEFAULT_OFF
-
-# ── Binary sensors ──
-
-binary_sensor:
-  - platform: template
-    name: "Front Door"
-    device_class: door
-    icon: mdi:door
-    lambda: |-
-      return (esp_random() % 10) < 2;  // ~20% chance open
-
-  - platform: template
-    name: "Motion Detected"
-    device_class: motion
-    icon: mdi:motion-sensor
-    lambda: |-
-      return (esp_random() % 10) < 3;  // ~30% chance active
-
-# ── Text sensors ──
-
-text_sensor:
-  - platform: version
-    name: "ESPHome Version"
-  - platform: wifi_info
-    ip_address:
-      name: "IP Address"
-
-# ── Scripts ──
-
-script:
-  - id: all_off
-    then:
-      - switch.turn_off: living_room_lamp
-      - switch.turn_off: porch_light
-      - switch.turn_off: fan
-      - logger.log: "All off!"
-
-  - id: all_on
-    then:
-      - switch.turn_on: living_room_lamp
-      - switch.turn_on: porch_light
-      - logger.log: "Everything on!"
-
-  - id: simulate_presence
-    mode: single
-    then:
-      - switch.turn_on: living_room_lamp
-      - delay: 5min
-      - switch.turn_off: living_room_lamp
-      - delay: 2min
-      - switch.turn_on: porch_light
-      - delay: 3min
-      - switch.turn_off: porch_light
-      - logger.log: "Presence simulation complete"
-```
+[example.yaml]
 
 ### What the MCP client discovers
 
@@ -280,20 +119,20 @@ After flashing, an MCP client connecting to `<device-ip>:8080` receives these to
 
 ```yaml
 mcp_server:
-  # TCP port to listen on.
+  # TCP port to listen on (optional).
   # Default: 8080
   port: 8080
 
-  # Automatically discover and expose all non-internal entities.
+  # Automatically discover and expose all non-internal entities (optional).
   # Default: true
   auto_discover: true
 
-  # Expose ESPHome script components as callable MCP tools.
+  # Expose ESPHome script components as callable MCP tools (optional).
   # Default: true
   expose_scripts: true
 
   # Restrict which entity types are exposed (optional).
-  # If omitted, ALL types are exposed.
+  # Defaults to ALL types are exposed.
   entity_types:
     - sensor
     - binary_sensor

@@ -1,3 +1,6 @@
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
 #include "mcp_entity_tools.h"
 #include "esphome/core/application.h"
 #include "esphome/core/entity_base.h"
@@ -384,11 +387,9 @@ std::string build_tools_list(bool auto_discover, bool expose_scripts,
         {"modes", modes},
         {"fan_modes", fan_modes},
         {"presets", presets},
-        {"supports_two_point", traits.get_supports_two_point_target_temperature() ? "true" : "false"},
         {"visual_min_temp", std::to_string((int)traits.get_visual_min_temperature())},
         {"visual_max_temp", std::to_string((int)traits.get_visual_max_temperature())},
         {"visual_temp_step", std::to_string(traits.get_visual_target_temperature_step())},
-        {"supports_action", traits.get_supports_action() ? "true" : "false"},
         {"supports_swing", !traits.get_supported_swing_modes().empty() ? "true" : "false"},
       });
       j.raw(R"({"name":"climate_)" + e->get_object_id() + R"(",)");
@@ -416,7 +417,7 @@ std::string build_tools_list(bool auto_discover, bool expose_scripts,
       std::string desc = rich_desc("Set number: " + e->get_name(), {
         {"icon", e->get_icon()},
         {"device_class", e->get_device_class()},
-        {"unit", e->traits.get_unit_of_measurement()},
+        {"unit", e->get_unit_of_measurement()},
         {"min", std::to_string(traits.get_min_value())},
         {"max", std::to_string(traits.get_max_value())},
         {"step", std::to_string(traits.get_step())},
@@ -440,13 +441,13 @@ std::string build_tools_list(bool auto_discover, bool expose_scripts,
     for (auto *e : App.get_selects()) {
       if (e->is_internal()) continue;
       comma();
-      auto options = e->traits.get_options();
+      const auto& options = e->traits.get_options();
       std::string opts_csv;
       std::string opts_enum = "[";
       for (size_t i = 0; i < options.size(); i++) {
         if (i > 0) { opts_csv += ","; opts_enum += ","; }
-        opts_csv += options[i];
-        opts_enum += "\"" + options[i] + "\"";
+        opts_csv += std::string(options[i]);
+        opts_enum += "\"" + std::string(options[i]) + "\"";
       }
       opts_enum += "]";
       std::string desc = rich_desc("Set select: " + e->get_name(), {
@@ -826,21 +827,15 @@ std::string execute_tool(const std::string &tool_name,
     for (auto *e : App.get_covers()) {
       if (e->get_object_id() == id) {
         std::string cmd = get_arg(args, "command");
-        if (cmd == "OPEN") e->open();
-        else if (cmd == "CLOSE") e->close();
-        else if (cmd == "STOP") e->stop();
+        auto cover_call = e->make_call();
+        if (cmd == "OPEN") cover_call.set_command_open();
+        else if (cmd == "CLOSE") cover_call.set_command_close();
+        else if (cmd == "STOP") cover_call.set_command_stop();
         std::string pos = get_arg(args, "position");
-        if (!pos.empty()) {
-          auto call = e->make_call();
-          call.set_position(std::stof(pos));
-          call.perform();
-        }
+        if (!pos.empty()) cover_call.set_position(std::stof(pos));
         std::string tilt = get_arg(args, "tilt");
-        if (!tilt.empty()) {
-          auto call = e->make_call();
-          call.set_tilt(std::stof(tilt));
-          call.perform();
-        }
+        if (!tilt.empty()) cover_call.set_tilt(std::stof(tilt));
+        cover_call.perform();
         return tool_result("Cover " + id + " -> " + cmd);
       }
     }
@@ -981,15 +976,13 @@ std::string execute_tool(const std::string &tool_name,
     for (auto *e : App.get_valves()) {
       if (e->get_object_id() == id) {
         std::string cmd = get_arg(args, "command");
-        if (cmd == "OPEN") e->open();
-        else if (cmd == "CLOSE") e->close();
-        else if (cmd == "STOP") e->stop();
+        auto valve_call = e->make_call();
+        if (cmd == "OPEN") valve_call.set_command_open();
+        else if (cmd == "CLOSE") valve_call.set_command_close();
+        else if (cmd == "STOP") valve_call.set_command_stop();
         std::string pos = get_arg(args, "position");
-        if (!pos.empty()) {
-          auto call = e->make_call();
-          call.set_position(std::stof(pos));
-          call.perform();
-        }
+        if (!pos.empty()) valve_call.set_position(std::stof(pos));
+        valve_call.perform();
         return tool_result("Valve " + id + " -> " + cmd);
       }
     }
@@ -1358,3 +1351,5 @@ std::string read_resource(const std::string &uri) {
 
 }  // namespace mcp_server
 }  // namespace esphome
+
+#pragma GCC diagnostic pop
