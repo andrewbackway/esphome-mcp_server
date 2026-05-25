@@ -48,18 +48,7 @@ void MCPServerComponent::dump_config() {
 // --- MCP Protocol Implementation ---
 
 std::string MCPServerComponent::handle_initialize() {
-  // MCP initialize response with capabilities
-  return R"({
-    "protocolVersion": "2025-03-26",
-    "capabilities": {
-      "tools": { "listChanged": false },
-      "resources": { "subscribe": false, "listChanged": false }
-    },
-    "serverInfo": {
-      "name": "esphome-mcp",
-      "version": "2026.6.0"
-    }
-  })";
+  return R"({"protocolVersion":"2025-03-26","capabilities":{"tools":{"listChanged":false},"resources":{"subscribe":false,"listChanged":false}},"serverInfo":{"name":"esphome-mcp","version":"2026.6.0"}})";
 }
 
 std::string MCPServerComponent::handle_tools_list() {
