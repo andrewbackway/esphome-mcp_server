@@ -66,8 +66,7 @@ async def to_code(config):
 
     if config.get(CONF_EXPOSE_SCRIPTS, True):
         for script_conf in CORE.config.get("script", []):
-            if "name" in script_conf:
-                script_var = await cg.get_variable(script_conf["id"])
-                object_id = str(script_conf["id"])
-                name = str(script_conf["name"])
-                cg.add(var.add_script(script_var, object_id, name))
+            script_var = await cg.get_variable(script_conf["id"])
+            object_id = str(script_conf["id"])
+            name = str(script_conf.get("name", object_id))
+            cg.add(var.add_script(script_var, object_id, name))
