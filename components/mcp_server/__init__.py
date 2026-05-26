@@ -65,8 +65,12 @@ async def to_code(config):
             cg.add(var.add_entity_type_filter(etype))
 
     if config.get(CONF_EXPOSE_SCRIPTS, True):
+        scripts_registered = False
         for script_conf in CORE.config.get("script", []):
             script_var = await cg.get_variable(script_conf["id"])
             object_id = str(script_conf["id"])
             name = str(script_conf.get("name", object_id))
             cg.add(var.add_script(script_var, object_id, name))
+            scripts_registered = True
+        if scripts_registered:
+            cg.add_define("MCP_HAS_SCRIPTS")

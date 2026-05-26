@@ -70,7 +70,7 @@
 #ifdef USE_TEXT
 #include "esphome/components/text/text.h"
 #endif
-#ifdef USE_SCRIPT
+#ifdef MCP_HAS_SCRIPTS
 #include "esphome/components/script/script.h"
 #endif
 
@@ -1133,7 +1133,7 @@ std::string execute_tool(const std::string &tool_name,
     for (auto &s : scripts) {
       if (s.object_id == id) {
         std::string action = get_arg(args, "action");
-#ifdef USE_SCRIPT
+#ifdef MCP_HAS_SCRIPTS
         auto *script = static_cast<esphome::script::Script<> *>(s.script_ptr);
         if (action == "stop") {
           script->stop();
